@@ -1,13 +1,14 @@
 from fastapi import FastAPI, UploadFile, File
-import shutil
-import uuid
 import os
-
+import uuid
 from App.classifier import NSFWDetector
 
 app = FastAPI(title="NSFW Moderation API")
 
-# ✅ Safe: constructor does NOT load model
+# Create temp upload directory
+UPLOAD_DIR = "/tmp/uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 detector = NSFWDetector()
 
 
@@ -16,19 +17,17 @@ def health():
     return {"status": "ok"}
 
 
-@app.post("/classify")
-async def classify_image(file: UploadFile = File(...)):
-    # Save uploaded image to temp location
-    suffix = os.path.splitext(file.filename)[-1]
-    temp_path = f"/tmp/{uuid.uuid4()}{suffix}"
+@app.post("/moderate")
+async def moderate_image(file: UploadFile = File(...)):
+    ext = os.path.splitext(file.filename)[-1]
+    temp_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{ext}")
 
-    with open(temp_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    with open(temp_path, "wb") as f:
+        f.write(await file.read())
 
     try:
         result = detector.classify(temp_path)
         return result
     finally:
-        # Clean up temp file
         if os.path.exists(temp_path):
             os.remove(temp_path)

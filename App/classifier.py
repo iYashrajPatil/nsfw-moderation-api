@@ -1,19 +1,18 @@
 import os
 
-# Force fresh writable directory
+# Force writable, fresh model directory (Render-safe)
 os.environ["NUDENET_HOME"] = "/tmp/nudenet"
 
 
 class NSFWDetector:
     def __init__(self):
-        # 🚫 DO NOT load model here
         self.detector = None
 
         self.sexual_parts = {
             "FEMALE_GENITALIA_EXPOSED",
             "MALE_GENITALIA_EXPOSED",
             "ANUS_EXPOSED",
-            "FEMALE_BREAST_EXPOSED"
+            "FEMALE_BREAST_EXPOSED",
         }
 
         self.soft_parts = {
@@ -22,7 +21,7 @@ class NSFWDetector:
             "BELLY_EXPOSED",
             "TORSO_EXPOSED",
             "ARMPITS_EXPOSED",
-            "BUTTOCKS_EXPOSED"
+            "BUTTOCKS_EXPOSED",
         }
 
         self.EXPLICIT_THRESHOLD = 0.7
@@ -31,14 +30,10 @@ class NSFWDetector:
 
     def _load_model(self):
         if self.detector is None:
-            print("⏳ Lazy-loading NudeNet model...")
             from nudenet import NudeDetector
+            self.detector = NudeDetector()
 
-            self.detector = NudeDetector(
-                providers=["CPUExecutionProvider"]
-            )
-
-    def classify(self, image_path):
+    def classify(self, image_path: str):
         self._load_model()
 
         detections = self.detector.detect(image_path)
@@ -55,6 +50,7 @@ class NSFWDetector:
 
             if label in self.sexual_parts and score >= 0.5:
                 sexual_score += score
+
             elif label in self.soft_parts and score >= self.SOFT_SINGLE_IGNORE:
                 soft_score += score
 
