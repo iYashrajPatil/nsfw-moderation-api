@@ -1,10 +1,26 @@
 from nudenet import NudeDetector
+import os
 
 
 class NSFWDetector:
     def __init__(self):
-        # Load NudeNet detector (auto-downloads model internally)
-        self.detector = NudeDetector()
+        """
+        Load NudeNet detector using a locally shipped ONNX model.
+        This avoids auto-download issues on cloud platforms like Render.
+        """
+
+        # Absolute path to models/detector.onnx
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        model_path = os.path.join(base_dir, "..", "models", "detector.onnx")
+
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(
+                f"NudeNet model not found at {model_path}. "
+                "Make sure detector.onnx is committed to the repo."
+            )
+
+        # ✅ Explicit model loading (Render-safe)
+        self.detector = NudeDetector(model_path=model_path)
 
         # 🚫 Strong sexual indicators (always serious)
         self.sexual_parts = {
@@ -43,7 +59,6 @@ class NSFWDetector:
         soft_score = 0.0
         explicit_hits = 0
         soft_hits = 0
-
         detailed_hits = []
 
         # 🔍 Analyze detections
@@ -63,7 +78,7 @@ class NSFWDetector:
                 soft_hits += 1
                 detailed_hits.append((label, score))
 
-        # 🚫 HARD NSFW (high confidence explicit exposure)
+        # 🚫 HARD NSFW
         if explicit_hits >= 1 and sexual_score >= self.EXPLICIT_THRESHOLD:
             return {
                 "verdict": "NSFW",
@@ -71,7 +86,7 @@ class NSFWDetector:
                 "signals": detailed_hits
             }
 
-        # ✅ CLEAR SAFE (saree, gym wear, beach, traditional clothing)
+        # ✅ CLEAR SAFE (saree, gym, beach, traditional clothing)
         if explicit_hits == 0 and soft_score <= self.SOFT_CUMULATIVE_SAFE:
             return {
                 "verdict": "SAFE",
@@ -79,7 +94,7 @@ class NSFWDetector:
                 "signals": detailed_hits
             }
 
-        # ⚠️ REVIEW (edge cases only)
+        # ⚠️ REVIEW (edge cases)
         if (
             explicit_hits == 0
             and soft_score > self.SOFT_CUMULATIVE_SAFE
@@ -91,7 +106,7 @@ class NSFWDetector:
                 "signals": detailed_hits
             }
 
-        # 🚫 Fallback safety net
+        # 🚫 Fallback
         return {
             "verdict": "REVIEW",
             "reason": "Uncertain detection confidence",
