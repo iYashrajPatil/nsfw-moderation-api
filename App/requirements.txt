@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+nudenet==2.0.9
+onnxruntime
+pillow
+python-multipart
