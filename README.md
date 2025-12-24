@@ -107,19 +107,23 @@ This avoids cases like:
 
 ### NSFW Image
 ```json
+```json
 {
   "verdict": "NSFW"
 }
-
+```
 ### Safe Image
+```json
 {
   "verdict": "SAFE"
 }
-
+```
 ### Reviewed Image
+```json
 {
   "verdict": "REVIEW"
 }
+```
 
 ## 🚀 Key Features
 
