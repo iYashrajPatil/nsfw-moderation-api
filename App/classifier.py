@@ -1,63 +1,83 @@
 import os
-
-# Force writable, fresh model directory (Render-safe)
-os.environ["NUDENET_HOME"] = "/tmp/nudenet"
+from typing import Dict, List
 
 
 class NSFWDetector:
+    """
+    Lightweight NSFW moderation logic using NudeNet
+    Model is loaded lazily (only when first image is classified)
+    """
+
     def __init__(self):
         self.detector = None
 
-        self.sexual_parts = {
+        # Explicit sexual content
+        self.explicit_parts = {
             "FEMALE_GENITALIA_EXPOSED",
             "MALE_GENITALIA_EXPOSED",
             "ANUS_EXPOSED",
-            "FEMALE_BREAST_EXPOSED",
+            "FEMALE_BREAST_EXPOSED"
         }
 
+        # Soft / suggestive content
         self.soft_parts = {
             "FEMALE_BREAST_COVERED",
             "MALE_CHEST",
             "BELLY_EXPOSED",
             "TORSO_EXPOSED",
             "ARMPITS_EXPOSED",
-            "BUTTOCKS_EXPOSED",
+            "BUTTOCKS_EXPOSED"
         }
 
+        # Thresholds
         self.EXPLICIT_THRESHOLD = 0.7
         self.SOFT_SINGLE_IGNORE = 0.6
         self.SOFT_CUMULATIVE_SAFE = 1.2
 
     def _load_model(self):
+        """Load NudeNet model only once"""
         if self.detector is None:
             from nudenet import NudeDetector
             self.detector = NudeDetector()
 
-    def classify(self, image_path: str):
+    def classify(self, image_path: str) -> Dict:
+        """
+        Classify image into SAFE / NSFW / REVIEW
+        """
         self._load_model()
 
-        detections = self.detector.detect(image_path)
+        detections: List[Dict] = self.detector.detect(image_path)
 
         if not detections:
-            return {"verdict": "SAFE"}
+            return {"verdict": "SAFE", "reason": "No detections"}
 
         sexual_score = 0.0
         soft_score = 0.0
 
-        for d in detections:
-            label = d.get("class", "")
-            score = float(d.get("score", 0.0))
+        for det in detections:
+            label = det.get("class", "")
+            score = float(det.get("score", 0.0))
 
-            if label in self.sexual_parts and score >= 0.5:
+            if label in self.explicit_parts and score >= 0.5:
                 sexual_score += score
 
             elif label in self.soft_parts and score >= self.SOFT_SINGLE_IGNORE:
                 soft_score += score
 
         if sexual_score >= self.EXPLICIT_THRESHOLD:
-            return {"verdict": "NSFW"}
+            return {
+                "verdict": "NSFW",
+                "sexual_score": sexual_score
+            }
 
         if sexual_score == 0 and soft_score <= self.SOFT_CUMULATIVE_SAFE:
-            return {"verdict": "SAFE"}
+            return {
+                "verdict": "SAFE",
+                "soft_score": soft_score
+            }
 
-        return {"verdict": "REVIEW"}
+        return {
+            "verdict": "REVIEW",
+            "sexual_score": sexual_score,
+            "soft_score": soft_score
+        }

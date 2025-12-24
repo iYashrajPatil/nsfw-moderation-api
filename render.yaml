@@ -1,7 +1,0 @@
-services:
-  - type: web
-    name: nsfw-moderation-api
-    runtime: python
-    plan: free
-    buildCommand: pip install -r App/requirements.txt
-    startCommand: uvicorn App.main:app --host 0.0.0.0 --port 10000

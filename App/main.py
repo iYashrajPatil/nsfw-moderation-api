@@ -1,33 +1,50 @@
-from fastapi import FastAPI, UploadFile, File
 import os
 import uuid
-from App.classifier import NSFWDetector
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import JSONResponse
+from classifier import NSFWDetector
+from PIL import Image
 
-app = FastAPI(title="NSFW Moderation API")
 
-# Create temp upload directory
-UPLOAD_DIR = "/tmp/uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+app = FastAPI(
+    title="NSFW Moderation API",
+    description="Image moderation using NudeNet",
+    version="1.0.0"
+)
 
 detector = NSFWDetector()
 
+UPLOAD_DIR = "tmp_uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 
 @app.get("/")
-def health():
-    return {"status": "ok"}
+def root():
+    return {
+        "status": "running",
+        "message": "NSFW Moderation API"
+    }
 
 
-@app.post("/moderate")
-async def moderate_image(file: UploadFile = File(...)):
-    ext = os.path.splitext(file.filename)[-1]
-    temp_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{ext}")
+@app.post("/classify-image")
+async def classify_image(file: UploadFile = File(...)):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Only image files allowed")
 
-    with open(temp_path, "wb") as f:
-        f.write(await file.read())
+    filename = f"{uuid.uuid4().hex}.jpg"
+    file_path = os.path.join(UPLOAD_DIR, filename)
 
     try:
-        result = detector.classify(temp_path)
-        return result
+        image = Image.open(file.file).convert("RGB")
+        image.save(file_path)
+
+        result = detector.classify(file_path)
+
+        return JSONResponse(content=result)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
     finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        if os.path.exists(file_path):
+            os.remove(file_path)

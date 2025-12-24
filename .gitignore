@@ -1,2 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+
+# Temp files
+temp_*
+tmp_uploads/
+
+# Models (never commit)
 Models/
 *.onnx
+
+# OS
+.DS_Store
+Thumbs.db
