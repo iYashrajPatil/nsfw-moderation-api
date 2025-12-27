@@ -1,195 +1,172 @@
-# 🛡️ NSFW Image Moderation API (NudeNet + Rule-Based Scoring)
+# 🛡️ Multi-Modal NSFW Content Moderation API  
+*(Image · Text · Video | Lightweight · Open-Source · CPU-Only)*
 
-An **NSFW image moderation system** that classifies images as **SAFE**, **NSFW**, or **REVIEW** using **NudeNet** for detection and a **custom rule-based scoring layer** to reduce false positives.
+A **production-ready, multi-modal content moderation system** designed for **social media platforms**.  
+It classifies **images, text, and videos** into **SAFE**, **REVIEW**, or **NSFW** using **lightweight open-source models**, rule-based logic, and confidence scoring.
 
-This project focuses on **practical content moderation**, not just raw machine-learning output.
+This project focuses on **practical, deployable content moderation**, not just raw machine-learning output.
 
 ---
 
 ## 📌 Problem Statement
 
-Platforms that accept user-generated images (social media, forums, marketplaces) must automatically detect **explicit or inappropriate visual content** to ensure safety and compliance.
+Platforms handling user-generated content (social media, forums, marketplaces, short-video apps) must automatically detect **explicit, abusive, or inappropriate content** to ensure safety, compliance, and user trust.
 
-Pure ML-based detection systems often suffer from:
-- ❌ High false positives (beach, gym, medical images)
-- ❌ Lack of explainability
-- ❌ Poor control over moderation strictness
+Pure ML-only moderation systems often suffer from:
 
----
-
-## 🧠 Solution Overview
-
-This project solves the problem using a **hybrid approach**:
-
-### 1️⃣ Detection Layer (Machine Learning)
-- Uses **NudeNet** to detect exposed or covered body parts
-- Returns labels with confidence scores
-
-### 2️⃣ Decision Layer (Rule-Based Logic)
-- Applies domain-specific rules
-- Aggregates confidence scores
-- Produces a final moderation verdict
-
-This ensures **better accuracy, transparency, and control**.
+- ❌ High false positives (beach, gym, medical, sports content)
+- ❌ Poor explainability
+- ❌ Expensive GPU requirements
+- ❌ Difficult deployment & scaling
+- ❌ No clear escalation strategy for ambiguous content
 
 ---
 
-## 🏗️ System Architecture
+## 💡 Solution Overview
 
-Image Input
-↓
-NudeNet Detection
-↓
-Label-wise Confidence Scores
-↓
-Rule-based Aggregation
-↓
-Final Verdict (SAFE / NSFW / REVIEW)
+This system implements a **multi-layered moderation pipeline** that combines:
+
+- ✅ **Image Moderation** → NudeNet + rule-based scoring  
+- ✅ **Text Moderation** → TF-IDF + Logistic Regression + keyword rules  
+- ✅ **Video Moderation** → Frame sampling + image moderation reuse  
+- ✅ **Central Orchestration** → Unified verdicts & confidence scoring  
+- ✅ **Production Logging** → Auditable moderation decisions  
+
+Each input is classified into:
+
+SAFE | REVIEW | NSFW
 
 
----
-
-## 🧪 Classification Logic
-
-### 🔴 NSFW (Explicit Content)
-- Exposed genitalia or anus
-- High-confidence exposed female breasts
-- Cumulative explicit score exceeds threshold
-
-### 🟡 REVIEW (Ambiguous Content)
-- Multiple soft signals detected
-- Borderline confidence levels
-- Requires human verification
-
-### 🟢 SAFE (Allowed Content)
-- No detections
-- Contextual or non-sexual exposure
-- Scores below defined thresholds
+with a **confidence score (0.0 – 1.0)**.
 
 ---
 
-## 📂 Project Structure
+## 🧠 System Architecture
 
-NSFW-moderation/
+                ┌──────────────────────┐
+                │   FastAPI Server     │
+                └─────────┬────────────┘
+                          │
+                ┌─────────▼────────────┐
+                │  Moderation Engine   │
+                └───────┬───────┬──────┘
+                        │       │
+        ┌───────────────▼───┐   ▼
+        │ Image Moderator    │  Text Moderator
+        │ (NudeNet + Rules)  │  (TF-IDF + Rules)
+        └───────────────┬───┘
+                        ▼
+                Video Moderator
+           (Frame Sampling + Image Moderator)
+
+
+- **Single verdict format**
+- **Modular & extensible**
+- **CPU-only inference**
+- **No paid APIs**
+- **Offline / self-hosted**
+
+---
+
+## 🧪 Moderation Logic
+
+### 🖼️ Image Moderation
+- Uses **NudeNet (ONNX, CPU-only)**
+- Detects explicit & suggestive body parts
+- Applies **rule-based aggregation** to reduce false positives
+- Verdicts based on configurable thresholds
+
+### ✍️ Text Moderation
+- Hybrid approach:
+  - TF-IDF + Logistic Regression (trained on public datasets)
+  - Keyword-based rule scoring
+- Designed for:
+  - Sexual content
+  - Abusive language
+  - Toxic comments
+- Conservative aggregation → **REVIEW instead of over-blocking**
+
+### 🎞️ Video Moderation
+- No heavy video neural networks
+- Uses **frame sampling (1 frame every 2 seconds)**
+- Reuses **existing image moderator**
+- Aggregates frame-level decisions
+- Early-exit optimization for obvious NSFW content
+
+---
+
+## 📤 Output Format (Consistent Across Modalities)
+
+```json
+{
+  "type": "image | text | video",
+  "verdict": "SAFE | REVIEW | NSFW",
+  "confidence": 0.0
+}
+```
+## 🚀 Getting Started
+1️⃣ Install Dependencies
+
+pip install -r requirements.txt
+
+2️⃣ Run the API
+
+python -m uvicorn App.main:app --reload
+
+3️⃣ Test via Swagger UI
+
+http://127.0.0.1:8000/docs
+
+NSFW_MODERATION/
 │
 ├── App/
-│ ├── init.py
-│ ├── classifier.py # Core NSFW detection & rule logic
-│ ├── main.py # FastAPI entry point
-│ └── tmp_uploads/ # Temporary image storage
+│   ├── classifier.py              # Image moderation (NudeNet)
+│   ├── text_moderator/             # Text moderation module
+│   ├── video_moderator/            # Video moderation module
+│   ├── moderation_engine.py        # Central orchestrator
+│   ├── logger.py                   # Central logging config
+│   ├── main.py                     # FastAPI app
+│   ├── models/                     # Trained ML models
+│   ├── tmp_uploads/                # Temporary files (gitignored)
+│   └── logs/
+│       └── moderation.log          # Moderation logs
 │
-├── .gitignore
 ├── requirements.txt
-├── render.yaml
-└── README.md
+├── README.md
+└── .gitignore
 
+## 📊 Logging & Observability
 
-⚠️ **Note:**  
-Model files (`.onnx`) are intentionally **not committed** due to GitHub size limits.  
-NudeNet automatically downloads required models at runtime.
+All moderation decisions are logged with:
 
----
+- Input type
+- Verdict
+- Confidence
+- Error details (if any)
 
-## ⚙️ Core Detection Strategy
+This enables:
 
-- **Explicit body parts** → high weight
-- **Soft body parts** → cumulative weight
-- **Threshold-based decision** to reduce false positives
+- Auditing moderation behavior
+- Debugging false positives
+- Compliance reporting
+- Production monitoring
 
-This avoids cases like:
-- Beach photos flagged as NSFW
-- Fitness or medical images misclassified
-- Single soft detection causing rejection
+## ⚠️ Limitations (Honest Disclosure)
 
----
+- Very short explicit flashes in videos may be missed
+- Sarcasm & deep context in text may require human review
+- Designed for social media moderation, not adult platforms
+###### These are intentional trade-offs for speed, cost, and deployability.
 
-## 📦 Example API Output
+## 🧑‍💻 Ideal Use Cases
 
-### NSFW Image
-```json
-```json
-{
-  "verdict": "NSFW"
-}
-```
-### Safe Image
-```json
-{
-  "verdict": "SAFE"
-}
-```
-### Reviewed Image
-```json
-{
-  "verdict": "REVIEW"
-}
-```
+- Social media platforms
+- Content upload moderation
+- Reels / Shorts / Stories filtering
+- Marketplace image safety checks
+- Academic & internship projects
+- Open-source moderation research
 
-## 🚀 Key Features
+## 📜 License
 
-✅ Lazy model loading (memory efficient)
-
-✅ Rule-based false positive reduction
-
-✅ Clear moderation outcomes
-
-✅ FastAPI-based architecture
-
-✅ Easy to extend with new rules
-
-## ⚠️ Limitations
-
-Scene-level context understanding is limited
-
-Cultural interpretations of nudity may vary
-
-Video moderation not included (image-only)
-
-## 🔧 Future Enhancements
-
-Context-aware detection using CLIP / ViT
-
-Human-in-the-loop moderation
-
-Video frame analysis
-
-Confidence calibration with real datasets
-
-## 🧑‍💻 Tech Stack
-
-Python 3
-
-FastAPI
-
-NudeNet
-
-ONNX Runtime
-
-Rule-based decision engine
-
-## 📌 Use Cases
-
-Social media moderation
-
-Marketplace image screening
-
-Content safety pipelines
-
-Automated pre-moderation systems
-
-## 📜 Disclaimer
-
-This project is intended for educational and research purposes.
-Final moderation accuracy depends on model behavior and threshold configuration.
-
-## ⭐ Final Note
-
-This project demonstrates:
-
-Practical ML integration
-
-Engineering judgment
-
-Explainable moderation decisions
-
-Real-world content safety challenges
+- This project uses only free & open-source components and is intended for ethical, public-platform content moderation.
