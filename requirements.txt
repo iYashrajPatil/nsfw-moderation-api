@@ -5,3 +5,4 @@ pillow
 numpy
 nudenet
 onnxruntime
+opencv-python

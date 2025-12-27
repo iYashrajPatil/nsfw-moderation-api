@@ -1,0 +1,8 @@
+2025-12-27 11:30:02,358 | INFO | text_moderator | Text ML model loaded successfully
+2025-12-27 11:30:02,358 | INFO | ModerationSystem | ModerationEngine initialized
+2025-12-27 11:30:45,009 | INFO | ModerationSystem | TEXT moderation started
+2025-12-27 11:30:45,014 | INFO | text_moderator | Text verdict=NSFW | rule=0.60 | ml=1.00
+2025-12-27 11:30:45,014 | INFO | ModerationSystem | TEXT verdict=NSFW confidence=1.0
+2025-12-27 11:30:46,308 | INFO | ModerationSystem | TEXT moderation started
+2025-12-27 11:30:46,310 | INFO | text_moderator | Text verdict=NSFW | rule=0.60 | ml=1.00
+2025-12-27 11:30:46,310 | INFO | ModerationSystem | TEXT verdict=NSFW confidence=1.0

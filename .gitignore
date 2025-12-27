@@ -2,13 +2,26 @@
 __pycache__/
 *.pyc
 
-# Temp files
-temp_*
-tmp_uploads/
+# Virtual env
+venv/
+.env
 
-# Models (never commit)
-Models/
-*.onnx
+# Temporary files
+tmp_uploads/
+tmp_frame.jpg
+
+# Logs
+logs/*.log
+
+# ML models (VERY IMPORTANT)
+models/*.pkl
+models/*.joblib
+models/*.onnx
+
+# Media
+*.mp4
+*.jpg
+*.png
 
 # OS
 .DS_Store
