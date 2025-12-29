@@ -10,32 +10,44 @@ import logging
 logger = logging.getLogger("text_moderator")
 logger.setLevel(logging.INFO)
 
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(
+        "[%(asctime)s] [%(levelname)s] [TEXT] %(message)s"
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
 
 class TextModerator:
     """
-    Production-ready lightweight text moderation system.
+    Production-ready text moderation (social-media focused)
 
     Combines:
-    - Rule-based keyword scoring
-    - ML-based probability (TF-IDF + Logistic Regression)
+    - Rule-based explicit keyword handling
+    - ML probability (TF-IDF + Logistic Regression)
 
     Verdicts:
     SAFE | REVIEW | NSFW
     """
 
     def __init__(self):
+        # 🔴 Strong sexual words (never SAFE)
         self.explicit_words = {
-            "sex", "nude", "porn", "fuck", "blowjob", "handjob",
-            "boobs", "pussy", "dick", "xxx"
+            "sex", "porn", "fuck", "blowjob", "handjob",
+            "pussy", "dick", "xxx", "nude"
         }
 
+        # 🟠 Abusive / borderline
         self.abusive_words = {
             "bitch", "slut", "whore", "bastard", "shit"
         }
 
+        # Thresholds
         self.NSFW_THRESHOLD = 0.75
-        self.REVIEW_THRESHOLD = 0.4
+        self.REVIEW_THRESHOLD = 0.35
 
+        # ML
         self.model = None
         self.vectorizer = None
         self._load_ml_model()
@@ -48,19 +60,22 @@ class TextModerator:
 
             self.model = joblib.load(model_path)
             self.vectorizer = joblib.load(vec_path)
-
-            logger.info("Text ML model loaded successfully")
+            logger.info("ML text model loaded")
 
         except Exception:
-            logger.warning("ML model not found — using rule-based only")
+            logger.warning("ML model not found — rule-based only")
 
     def _rule_score(self, text: str) -> float:
         words = re.findall(r"\w+", text.lower())
-        hits = sum(
-            1 for w in words
-            if w in self.explicit_words or w in self.abusive_words
-        )
-        return min(1.0, hits * 0.3)
+
+        explicit_hits = sum(1 for w in words if w in self.explicit_words)
+        abusive_hits = sum(1 for w in words if w in self.abusive_words)
+
+        # 🚨 Hard boost for explicit sexual content
+        if explicit_hits >= 1:
+            return 0.6 + (explicit_hits * 0.2)
+
+        return abusive_hits * 0.25
 
     def _ml_score(self, text: str) -> float:
         if not self.model or not self.vectorizer:
@@ -75,6 +90,7 @@ class TextModerator:
 
         confidence = max(rule_score, ml_score)
 
+        # 🧠 Verdict logic
         if confidence >= self.NSFW_THRESHOLD:
             verdict = "NSFW"
         elif confidence >= self.REVIEW_THRESHOLD:
@@ -83,7 +99,7 @@ class TextModerator:
             verdict = "SAFE"
 
         logger.info(
-            f"Text verdict={verdict} | rule={rule_score:.2f} | ml={ml_score:.2f}"
+            f"Verdict={verdict} | rule={rule_score:.2f} | ml={ml_score:.2f}"
         )
 
         return {

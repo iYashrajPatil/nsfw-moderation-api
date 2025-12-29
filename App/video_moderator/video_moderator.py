@@ -30,10 +30,7 @@ class VideoModerator:
     def __init__(self):
         self.detector = NSFWDetector()
 
-        # Sampling config
         self.FRAME_INTERVAL_SEC = 2.0
-
-        # Aggregation thresholds
         self.NSFW_RATIO_THRESHOLD = 0.3
         self.REVIEW_RATIO_THRESHOLD = 0.1
 
@@ -41,18 +38,13 @@ class VideoModerator:
         logger.info(f"Starting video moderation: {os.path.basename(video_path)}")
 
         cap = cv2.VideoCapture(video_path)
-        fps = cap.get(cv2.CAP_PROP_FPS)
-
-        if fps <= 0:
-            fps = 30
-            logger.warning("FPS not detected, defaulting to 30")
-
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30
         frame_interval = int(fps * self.FRAME_INTERVAL_SEC)
 
         total_frames = 0
         nsfw_frames = 0
         review_frames = 0
-        confidences = []
+        max_confidence = 0.0
 
         frame_idx = 0
 
@@ -73,25 +65,27 @@ class VideoModerator:
 
                 verdict = result.get("verdict", "SAFE")
 
+                # 🔑 USE IMAGE SCORES DIRECTLY
+                frame_confidence = max(
+                    result.get("sexual_score", 0.0),
+                    result.get("soft_score", 0.0)
+                )
+
+                max_confidence = max(max_confidence, frame_confidence)
+
                 if verdict == "NSFW":
                     nsfw_frames += 1
-                    confidence = max(
-                        result.get("sexual_score", 0.8),
-                        result.get("soft_score", 0.6)
+                    logger.warning(
+                        f"NSFW frame detected | frame={total_frames} | conf={frame_confidence:.2f}"
                     )
-                    logger.warning(f"NSFW frame detected (frame={total_frames})")
 
                 elif verdict == "REVIEW":
                     review_frames += 1
-                    confidence = 0.4
-                    logger.info(f"REVIEW frame detected (frame={total_frames})")
+                    logger.info(
+                        f"REVIEW frame detected | frame={total_frames} | conf={frame_confidence:.2f}"
+                    )
 
-                else:
-                    confidence = 0.05
-
-                confidences.append(confidence)
-
-                # 🚀 Early exit
+                # 🚀 EARLY EXIT
                 if (
                     total_frames >= 5
                     and (nsfw_frames / total_frames) >= self.NSFW_RATIO_THRESHOLD
@@ -108,12 +102,11 @@ class VideoModerator:
             return {
                 "type": "video",
                 "verdict": "SAFE",
-                "confidence": 0.05
+                "confidence": 0.0
             }
 
         nsfw_ratio = nsfw_frames / total_frames
         review_ratio = review_frames / total_frames
-        avg_conf = sum(confidences) / len(confidences)
 
         if nsfw_ratio >= self.NSFW_RATIO_THRESHOLD:
             verdict = "NSFW"
@@ -125,11 +118,11 @@ class VideoModerator:
         logger.info(
             f"Final verdict={verdict} | "
             f"nsfw_ratio={nsfw_ratio:.2f} | "
-            f"confidence={avg_conf:.2f}"
+            f"max_confidence={max_confidence:.2f}"
         )
 
         return {
             "type": "video",
             "verdict": verdict,
-            "confidence": round(avg_conf, 2)
+            "confidence": round(max_confidence, 2)
         }
